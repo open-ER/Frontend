@@ -142,3 +142,16 @@ export const getFilteredWines = async (filters: FilterState, page: number = 1): 
     }
 };
 
+// 선택한 와인들 비교
+export const compareWines = async (ids: string[]): Promise<WineApiResponse> => {
+    try {
+        console.log(`[API] Comparing ${ids.length} wines...`);
+        const response = await apiClient.post<WineApiResponse>('/wines/compare', { ids });
+        console.log(`[API] Comparison loaded: ${response.data.wines.length} wines`);
+        return response.data;
+    } catch (error) {
+        console.error('Failed to compare wines:', error);
+        throw error;
+    }
+};
+

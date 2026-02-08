@@ -539,11 +539,7 @@ export function BeginnerGuideModal({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            transition={{
-              type: "spring",
-              damping: 25,
-              stiffness: 300,
-            }}
+            transition={{ type: "tween", duration: 0.25 }}
             className="relative w-full max-w-2xl mx-4 bg-white rounded-lg shadow-2xl h-[65vh] flex flex-col"
             onClick={(e) => e.stopPropagation()} // 모달 내부 클릭 시 backdrop으로 전파 방지
           >

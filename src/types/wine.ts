@@ -1,4 +1,5 @@
 export interface WineRow {
+  _id?: string;
   wine_name: string;
   country: string;
   subregion: string;

@@ -34,6 +34,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalWines, setTotalWines] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   // API에서 와인 데이터 및 필터 옵션 가져오기 (초기 로드)
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function App() {
   useEffect(() => {
     const fetchFilteredWines = async () => {
       try {
-        setLoading(true);
+        setIsFilterLoading(true);
         const response = await getFilteredWines(filters, 1);
 
         setWines(response.wines);
@@ -81,7 +82,7 @@ export default function App() {
       } catch (err) {
         console.error('[App] Failed to fetch filtered wines:', err);
       } finally {
-        setLoading(false);
+        setIsFilterLoading(false);
       }
     };
 
@@ -186,14 +187,15 @@ export default function App() {
     setIsComparisonOpen(true);
   };
 
-  const selectedWineData = useMemo(() => {
-    return wines.filter((wine) =>
-      selectedWines.has(wine.wine_name),
-    );
+  const selectedWineIds = useMemo(() => {
+    return wines
+      .filter((wine) => selectedWines.has(wine.wine_name))
+      .map((wine) => wine._id)
+      .filter((id): id is string => id !== undefined);
   }, [selectedWines, wines]);
 
-  // 로딩 중 UI
-  if (loading && !isSliding) {
+  // 초기 로딩 중 UI (전체 페이지)
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -300,14 +302,23 @@ export default function App() {
         </div>
 
         {/* Wine Grid */}
-        <WineGrid
-          wines={filteredWines}
-          selectedWines={selectedWines}
-          onToggleWine={handleToggleWine}
-          onLoadMore={handleLoadMore}
-          hasMore={wines.length < totalWines}
-          isLoadingMore={isLoadingMore}
-        />
+        {isFilterLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 mb-3"></div>
+              <p className="text-gray-600">필터링 중...</p>
+            </div>
+          </div>
+        ) : (
+          <WineGrid
+            wines={filteredWines}
+            selectedWines={selectedWines}
+            onToggleWine={handleToggleWine}
+            onLoadMore={handleLoadMore}
+            hasMore={wines.length < totalWines}
+            isLoadingMore={isLoadingMore}
+          />
+        )}
       </div>
 
       {/* Comparison Bar */}
@@ -325,7 +336,7 @@ export default function App() {
       <ComparisonModal
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
-        wines={selectedWineData}
+        wineIds={selectedWineIds}
       />
     </div>
   );

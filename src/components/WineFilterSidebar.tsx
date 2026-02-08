@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { FilterState, WineRow } from "../types/wine";
 import { RangeSlider } from "./RangeSlider";
+import { motion, AnimatePresence } from "motion/react";
 
 interface WineFilterSidebarProps {
   filters: FilterState;
@@ -47,6 +48,16 @@ export function WineFilterSidebar({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const scrollableRef = useRef<HTMLDivElement>(null);
 
+  // 와인 타입 목록 (내부 정의)
+  const wineTypes = availableOptions.wineTypes || [
+    "레드",
+    "화이트",
+    "로제",
+    "스파클링",
+    "주정강화",
+    "디저트",
+  ];
+
   // 슬라이더 드래그 시작/종료 핸들러
   const handleSliderStart = () => {
     setIsSliding?.(true);
@@ -56,98 +67,31 @@ export function WineFilterSidebar({
     setIsSliding?.(false);
   };
 
-  // API에서 가져온 와인 타입 사용
-  const wineTypes = availableOptions.wineTypes;
-
-  // 스크롤 이벤트 완전 차단
+  // 모달 열릴 때 body 스크롤 차단 (개선된 버전)
   useEffect(() => {
-    if (!isOpen) return;
+    if (isOpen) {
+      // 현재 스크롤 위치 저장
+      const scrollY = window.scrollY;
 
-    const preventScroll = (e: Event) => {
-      e.stopPropagation();
-    };
+      // body 고정 - 더 안정적인 방법
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
 
-    const preventWheelScroll = (e: Event) => {
-      const wheelEvent = e as WheelEvent;
-      const target = wheelEvent.target as HTMLElement;
-      const scrollable = target.closest(".overflow-y-auto");
+      return () => {
+        // body 고정 해제
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
 
-      if (scrollable) {
-        const { scrollTop, scrollHeight, clientHeight } = scrollable;
-        const isAtTop = scrollTop === 0;
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
-
-        // 맨 위에서 위로 스크롤 또는 맨 아래에서 아래로 스크롤하는 경우 차단
-        if (
-          (isAtTop && wheelEvent.deltaY < 0) ||
-          (isAtBottom && wheelEvent.deltaY > 0)
-        ) {
-          wheelEvent.preventDefault();
-        }
-      }
-
-      wheelEvent.stopPropagation();
-    };
-
-    const sidebar = sidebarRef.current;
-    const scrollable = scrollableRef.current;
-
-    if (sidebar) {
-      sidebar.addEventListener("wheel", preventWheelScroll, {
-        passive: false,
-      });
-      sidebar.addEventListener("touchmove", preventScroll, {
-        passive: false,
-      });
-      sidebar.addEventListener("scroll", preventScroll, true);
+        // 스크롤 위치 복원
+        window.scrollTo(0, scrollY);
+      };
     }
-
-    if (scrollable) {
-      scrollable.addEventListener("wheel", preventWheelScroll, {
-        passive: false,
-      });
-      scrollable.addEventListener("touchmove", preventScroll, {
-        passive: false,
-      });
-    }
-
-    // 모든 하위 스크롤 영역에도 적용
-    const scrollableAreas = sidebar?.querySelectorAll(
-      ".overflow-y-auto",
-    );
-    scrollableAreas?.forEach((area) => {
-      area.addEventListener("wheel", preventWheelScroll, {
-        passive: false,
-      });
-      area.addEventListener("touchmove", preventScroll, {
-        passive: false,
-      });
-    });
-
-    return () => {
-      if (sidebar) {
-        sidebar.removeEventListener(
-          "wheel",
-          preventWheelScroll,
-        );
-        sidebar.removeEventListener("touchmove", preventScroll);
-        sidebar.removeEventListener("scroll", preventScroll);
-      }
-      if (scrollable) {
-        scrollable.removeEventListener(
-          "wheel",
-          preventWheelScroll,
-        );
-        scrollable.removeEventListener(
-          "touchmove",
-          preventScroll,
-        );
-      }
-      scrollableAreas?.forEach((area) => {
-        area.removeEventListener("wheel", preventWheelScroll);
-        area.removeEventListener("touchmove", preventScroll);
-      });
-    };
   }, [isOpen]);
 
   // 국가 선택 변경 감지
@@ -205,7 +149,7 @@ export function WineFilterSidebar({
           .map((w) => w.subregion),
       );
       newSubregions = filters.subregions.filter(
-        (s) => !countryRegions.has(s),
+        (r) => !countryRegions.has(r),
       );
     }
 
@@ -230,7 +174,7 @@ export function WineFilterSidebar({
     onFilterChange({ ...filters, vintages: newVintages });
   };
 
-  const handleGrapeVarietyToggle = (grape: string) => {
+  const handleGrapeToggle = (grape: string) => {
     const newGrapes = filters.grapeVarieties.includes(grape)
       ? filters.grapeVarieties.filter((g) => g !== grape)
       : [...filters.grapeVarieties, grape];
@@ -244,395 +188,413 @@ export function WineFilterSidebar({
     onFilterChange({ ...filters, aromas: newAromas });
   };
 
-  return (
-    <>
-      {/* Backdrop Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop z-40 transition-opacity duration-300"
-          onClick={onToggle}
-        />
-      )}
-
-      {/* Help Button (when sidebar closed) */}
+  if (!isOpen) {
+    return (
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenGuide();
-        }}
-        className={`fixed top-4 left-4 z-50 bg-white shadow-sm rounded-full p-3 hover:bg-gray-50 hover:shadow-lg transition-all duration-300 hover:scale-110 ${
-          isOpen || isSearchOpen ? "hidden" : ""
-        }`}
-        aria-label="도움말"
-      >
-        <HelpCircle className="w-6 h-6 text-gray-700" />
-      </button>
-
-      {/* Toggle Button (when closed) */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        className={`fixed top-24 left-4 z-50 bg-white shadow-sm rounded-full p-3 hover:bg-gray-50 hover:shadow-lg transition-all duration-300 hover:scale-110 ${
-          isOpen || isSearchOpen ? "hidden" : ""
+        onClick={onToggle}
+        className={`fixed left-4 top-4 z-40 bg-white hover:bg-gray-50 text-gray-700 p-3 rounded-full shadow-lg transition-all hover:shadow-xl ${
+          isSearchOpen
+            ? "opacity-0 pointer-events-none"
+            : "opacity-100"
         }`}
         aria-label="필터 열기"
       >
-        <SlidersHorizontal className="w-6 h-6 text-gray-700" />
+        <SlidersHorizontal className="w-6 h-6" />
       </button>
+    );
+  }
 
-      {/* Floating Sidebar Modal */}
-      <div
-        ref={sidebarRef}
-        className={`fixed max-h-[80vh] left-6 top-6 bottom-6 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 transition-all duration-300 ease-in-out ${
-          isOpen && !isSearchOpen
-            ? "translate-x-0 opacity-100"
-            : "-translate-x-[450px] opacity-0"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Sidebar Header - Fixed */}
-        <div className="sticky top-0 bg-gradient-to-r from-[#8B1538] to-[#6B0F2A] text-white p-6 shadow-lg z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggle();
-                }}
-                className="hover:bg-white/20 rounded-lg p-2 transition-colors"
-                aria-label="필터 닫기"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <h2 className="text-2xl font-bold">필터</h2>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReset();
-              }}
-              className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium"
-            >
-              <RotateCcw className="w-4 h-4" />
-              초기화
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable Content */}
-        <div
-          ref={scrollableRef}
-          className="overflow-y-auto h-[calc(100%-88px)] px-8 py-4"
-        >
-          {/* Price Range */}
-          <RangeSlider
-            min={0}
-            max={500000}
-            step={10000}
-            value={filters.priceRange}
-            onChange={(value) =>
-              onFilterChange({
-                ...filters,
-                priceRange: value,
-              })
-            }
-            onChangeStart={handleSliderStart}
-            onChangeComplete={() => handleSliderComplete()}
-            formatLabel={(value) =>
-              `₩${value.toLocaleString()}`
-            }
-            label="가격 범위"
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-start p-4 md:p-8">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/30"
+            onClick={onToggle}
           />
 
-          {/* Wine Types */}
-          <div className="mb-6 p-4">
-            <label className="block text-sm font-semibold mb-3 text-gray-700">
-              와인 타입
-            </label>
-            <div className="space-y-2">
-              {wineTypes.map((type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                  onClick={(e) => e.stopPropagation()}
+          {/* Modal */}
+          <motion.div
+            ref={sidebarRef}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: "tween", duration: 0.25 }}
+            className="relative w-full md:w-[420px] lg:w-[460px]
+                      max-h-[calc(100vh-12rem)] md:max-h-[calc(100vh-14rem)]
+                      bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 md:p-6 border-b bg-white sticky top-0 z-10 rounded-t-2xl shrink-0">
+              <div className="flex items-center gap-3">
+                <SlidersHorizontal className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">
+                  필터
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onOpenGuide}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-all hover:scale-110"
+                  aria-label="가이드 열기"
+                  title="와인 가이드"
                 >
-                  <input
-                    type="checkbox"
-                    checked={filters.wineTypes.includes(type)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleWineTypeToggle(type);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  <HelpCircle
+                    className="w-6 h-6 text-gray-600"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                  <span className="text-sm group-hover:text-purple-600 transition-colors">
-                    {type}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Countries */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold mb-3 text-gray-700">
-              국가
-            </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {availableOptions.countries.map((country) => (
-                <label
-                  key={country}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                  onClick={(e) => e.stopPropagation()}
+                </button>
+                <button
+                  onClick={onReset}
+                  className="flex items-center gap-1 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  title="모든 필터 초기화"
                 >
-                  <input
-                    type="checkbox"
-                    checked={filters.countries.includes(
-                      country,
-                    )}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleCountryToggle(country);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm group-hover:text-indigo-600 transition-colors">
-                    {country}
+                  <RotateCcw className="w-4 h-4" />
+                  <span className="hidden md:inline">
+                    초기화
                   </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Subregions */}
-          {isSubregionVisible && (
-            <div
-              className={`mb-6 bg-gray-50 rounded-xl p-4 shadow-sm ${
-                isAnimatingOut
-                  ? "animate-slideUp"
-                  : "animate-slideDown"
-              }`}
-            >
-              <label className="block text-sm font-semibold mb-3 text-gray-700">
-                지역
-              </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                {filteredSubregions.map((subregion) => (
-                  <label
-                    key={subregion}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.subregions.includes(
-                        subregion,
-                      )}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleSubregionToggle(subregion);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="text-sm group-hover:text-purple-600 transition-colors">
-                      {subregion}
-                    </span>
-                  </label>
-                ))}
+                </button>
+                <button
+                  onClick={onToggle}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-all hover:scale-110 ml-2"
+                  aria-label="필터 닫기"
+                  title="닫기"
+                >
+                  <ArrowLeft
+                    className="w-5 h-5 text-gray-600"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </button>
               </div>
             </div>
-          )}
 
-          {/* Vintages */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
-            <label className="block text-sm font-semibold mb-3 text-gray-700">
-              빈티지
-            </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {availableOptions.vintages.map((vintage) => (
-                <label
-                  key={vintage}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.vintages.includes(vintage)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleVintageToggle(vintage);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            {/* Scrollable Content */}
+            <div
+              ref={scrollableRef}
+              className="overflow-y-auto flex-1 px-4 py-4 md:py-6"
+              style={{
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              {/* Price Range */}
+              <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <RangeSlider
+                    min={0}
+                    max={500000}
+                    step={10000}
+                    value={filters.priceRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        priceRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) =>
+                      `₩${value.toLocaleString()}`
+                    }
+                    label="가격 범위"
                   />
-                  <span className="text-sm group-hover:text-amber-700 transition-colors">
-                    {vintage}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+                </div>
 
-          {/* Grape Varieties */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
-            <label className="block text-sm font-semibold mb-3 text-gray-700">
-              품종
-            </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {availableOptions.grapeVarieties.map((grape) => (
-                <label
-                  key={grape}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.grapeVarieties.includes(
-                      grape,
+                {/* Wine Types */}
+                <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-medium mb-3 text-gray-700">
+                    와인 타입
+                  </label>
+                  <div className="space-y-2">
+                    {wineTypes.map((type) => (
+                      <label
+                        key={type}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.wineTypes.includes(
+                            type,
+                          )}
+                          onChange={() =>
+                            handleWineTypeToggle(type)
+                          }
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Countries */}
+                <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-medium mb-3 text-gray-700">
+                    국가
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(availableOptions.countries || []).map(
+                      (country) => (
+                        <label
+                          key={country}
+                          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.countries.includes(
+                              country,
+                            )}
+                            onChange={() =>
+                              handleCountryToggle(country)
+                            }
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm">
+                            {country}
+                          </span>
+                        </label>
+                      ),
                     )}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleGrapeVarietyToggle(grape);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  </div>
+                </div>
+
+                {/* Subregions */}
+                {isSubregionVisible && (
+                  <div
+                    className={`mb-6 shadow-sm p-4 rounded-lg border border-gray-200 transition-all duration-300 ${
+                      isAnimatingOut
+                        ? "opacity-0 -translate-y-2"
+                        : "opacity-100 translate-y-0"
+                    }`}
+                  >
+                    <label className="block text-sm font-medium mb-3 text-gray-700">
+                      세부 지역
+                    </label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {(filteredSubregions || []).map(
+                        (subregion) => (
+                          <label
+                            key={subregion}
+                            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={filters.subregions.includes(
+                                subregion,
+                              )}
+                              onChange={() =>
+                                handleSubregionToggle(subregion)
+                              }
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm">
+                              {subregion}
+                            </span>
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Vintages */}
+                <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-medium mb-3 text-gray-700">
+                    빈티지
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(availableOptions.vintages || []).map(
+                      (vintage) => (
+                        <label
+                          key={vintage}
+                          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.vintages.includes(
+                              vintage,
+                            )}
+                            onChange={() =>
+                              handleVintageToggle(vintage)
+                            }
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm">
+                            {vintage}
+                          </span>
+                        </label>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {/* Grape Varieties */}
+                <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-medium mb-3 text-gray-700">
+                    품종
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(
+                      availableOptions.grapeVarieties || []
+                    ).map((grape) => (
+                      <label
+                        key={grape}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.grapeVarieties.includes(
+                            grape,
+                          )}
+                          onChange={() =>
+                            handleGrapeToggle(grape)
+                          }
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm">{grape}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Aromas */}
+                <div className="mb-6 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <label className="block text-sm font-medium mb-3 text-gray-700">
+                    향
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(availableOptions.aromas || []).map(
+                      (aroma) => (
+                        <label
+                          key={aroma}
+                          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-2 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.aromas.includes(
+                              aroma,
+                            )}
+                            onChange={() =>
+                              handleAromaToggle(aroma)
+                            }
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm">
+                            {aroma}
+                          </span>
+                        </label>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {/* Tasting Profile */}
+                <div className="mb-8 shadow-sm p-4 rounded-lg border border-gray-200">
+                  <h3 className="text-sm font-medium mb-4 text-gray-700">
+                    테이스팅 프로필
+                  </h3>
+
+                  <RangeSlider
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    value={filters.tanninRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        tanninRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) => value.toFixed(1)}
+                    label="타닌"
                   />
-                  <span className="text-sm group-hover:text-green-700 transition-colors">
-                    {grape}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
 
-          {/* Aromas */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
-            <label className="block text-sm font-semibold mb-3 text-gray-700">
-              향
-            </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {availableOptions.aromas.map((aroma) => (
-                <label
-                  key={aroma}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.aromas.includes(aroma)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleAromaToggle(aroma);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  <RangeSlider
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    value={filters.sweetnessRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        sweetnessRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) => value.toFixed(1)}
+                    label="당도"
                   />
-                  <span className="text-sm group-hover:text-blue-700 transition-colors">
-                    {aroma}
-                  </span>
-                </label>
-              ))}
+
+                  <RangeSlider
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    value={filters.acidityRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        acidityRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) => value.toFixed(1)}
+                    label="산도"
+                  />
+
+                  <RangeSlider
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    value={filters.bodyRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        bodyRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) => value.toFixed(1)}
+                    label="바디"
+                  />
+
+                  <RangeSlider
+                    min={0}
+                    max={25}
+                    step={0.5}
+                    value={filters.alcoholRange}
+                    onChange={(value) =>
+                      onFilterChange({
+                        ...filters,
+                        alcoholRange: value,
+                      })
+                    }
+                    onStart={handleSliderStart}
+                    onComplete={handleSliderComplete}
+                    formatLabel={(value) =>
+                      `${value.toFixed(1)}%`
+                    }
+                    label="알코올 도수"
+                  />
+                </div>
+
+              {/* Bottom spacing for better scrolling */}
+              <div className="h-4"></div>
             </div>
-          </div>
-
-          {/* Taste Profile Section */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
-            <h3 className="text-base font-semibold mb-4 text-gray-700">
-              맛 프로필
-            </h3>
-
-            <RangeSlider
-              min={1}
-              max={5}
-              step={0.1}
-              value={filters.tanninRange}
-              onChange={(value) =>
-                onFilterChange({
-                  ...filters,
-                  tanninRange: value,
-                })
-              }
-              onChangeStart={handleSliderStart}
-              onChangeComplete={() => handleSliderComplete()}
-              formatLabel={(value) => value.toFixed(1)}
-              label="타닌"
-            />
-
-            <RangeSlider
-              min={1}
-              max={5}
-              step={0.1}
-              value={filters.sweetnessRange}
-              onChange={(value) =>
-                onFilterChange({
-                  ...filters,
-                  sweetnessRange: value,
-                })
-              }
-              onChangeStart={handleSliderStart}
-              onChangeComplete={() => handleSliderComplete()}
-              formatLabel={(value) => value.toFixed(1)}
-              label="당도"
-            />
-
-            <RangeSlider
-              min={1}
-              max={5}
-              step={0.1}
-              value={filters.acidityRange}
-              onChange={(value) =>
-                onFilterChange({
-                  ...filters,
-                  acidityRange: value,
-                })
-              }
-              onChangeStart={handleSliderStart}
-              onChangeComplete={() => handleSliderComplete()}
-              formatLabel={(value) => value.toFixed(1)}
-              label="산도"
-            />
-
-            <RangeSlider
-              min={1}
-              max={5}
-              step={0.1}
-              value={filters.bodyRange}
-              onChange={(value) =>
-                onFilterChange({
-                  ...filters,
-                  bodyRange: value,
-                })
-              }
-              onChangeStart={handleSliderStart}
-              onChangeComplete={() => handleSliderComplete()}
-              formatLabel={(value) => value.toFixed(1)}
-              label="바디"
-            />
-
-            <RangeSlider
-              min={0}
-              max={25}
-              step={0.5}
-              value={filters.alcoholRange}
-              onChange={(value) =>
-                onFilterChange({
-                  ...filters,
-                  alcoholRange: value,
-                })
-              }
-              onChangeStart={handleSliderStart}
-              onChangeComplete={() => handleSliderComplete()}
-              formatLabel={(value) => `${value.toFixed(1)}%`}
-              label="알코올 도수 (%)"
-            />
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </>
+      )}
+    </AnimatePresence>
   );
 }

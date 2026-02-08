@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { WineRow } from "../types/wine";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   RadarChart,
   PolarGrid,
@@ -11,11 +11,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion, AnimatePresence } from "motion/react";
+import { compareWines } from "../api/api";
 
 interface ComparisonModalProps {
   isOpen: boolean;
   onClose: () => void;
-  wines: WineRow[];
+  wineIds: string[];
 }
 
 const WINE_COLORS = [
@@ -30,16 +31,39 @@ const WINE_COLORS = [
 export function ComparisonModal({
   isOpen,
   onClose,
-  wines,
+  wineIds,
 }: ComparisonModalProps) {
-  // 최대 5개까지만 표시
-  const displayWines = wines.slice(0, 5);
-
+  const [wines, setWines] = useState<WineRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [hiddenCards, setHiddenCards] = useState<Set<number>>(
     new Set(),
   );
 
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
+
+  // API로부터 와인 데이터 가져오기
+  useEffect(() => {
+    const fetchComparisonData = async () => {
+      if (!isOpen || wineIds.length === 0) {
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await compareWines(wineIds);
+        setWines(response.wines);
+      } catch (error) {
+        console.error('Failed to fetch comparison data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchComparisonData();
+  }, [isOpen, wineIds]);
+
+  // 최대 5개까지만 표시
+  const displayWines = wines.slice(0, 5);
 
   // Toggle card visibility
   const toggleCardVisibility = (index: number) => {
@@ -122,6 +146,19 @@ export function ComparisonModal({
 
             {/* Content */}
             <div className="p-4 md:p-8">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                    <p className="text-gray-600">와인 데이터를 불러오는 중...</p>
+                  </div>
+                </div>
+              ) : wines.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-gray-600">비교할 와인이 없습니다</p>
+                </div>
+              ) : (
+                <div>
               {/* Tasting Profile Charts */}
               <div className="mb-8 md:mb-12">
                 <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6">
@@ -705,6 +742,8 @@ export function ComparisonModal({
                   </div>
                 </div>
               </div>
+              </div>
+              )}
             </div>
           </motion.div>
         </div>
