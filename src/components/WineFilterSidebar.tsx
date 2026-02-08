@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   RotateCcw,
   SlidersHorizontal,
+  HelpCircle,
 } from "lucide-react";
 import { FilterState, WineRow } from "../types/wine";
 import { RangeSlider } from "./RangeSlider";
@@ -14,12 +15,17 @@ interface WineFilterSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   availableOptions: {
+    wineTypes: string[];
     countries: string[];
     subregions: string[];
     vintages: number[];
     grapeVarieties: string[];
+    aromas: string[];
   };
-  wines: WineRow[]; // 전체 와인 데이터 추가
+  wines: WineRow[];
+  onOpenGuide: () => void;
+  isSearchOpen?: boolean;
+  setIsSliding?: (sliding: boolean) => void;
 }
 
 export function WineFilterSidebar({
@@ -30,19 +36,119 @@ export function WineFilterSidebar({
   onToggle,
   availableOptions,
   wines,
+  onOpenGuide,
+  isSearchOpen = false,
+  setIsSliding,
 }: WineFilterSidebarProps) {
-  const [isSubregionVisible, setIsSubregionVisible] = useState(false);
+  const [isSubregionVisible, setIsSubregionVisible] =
+    useState(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const prevCountriesLength = useRef(filters.countries.length);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const scrollableRef = useRef<HTMLDivElement>(null);
 
-  const wineTypes = [
-    "레드",
-    "화이트",
-    "로제",
-    "스파클링",
-    "주정강화",
-    "디저트",
-  ];
+  // 슬라이더 드래그 시작/종료 핸들러
+  const handleSliderStart = () => {
+    setIsSliding?.(true);
+  };
+
+  const handleSliderComplete = () => {
+    setIsSliding?.(false);
+  };
+
+  // API에서 가져온 와인 타입 사용
+  const wineTypes = availableOptions.wineTypes;
+
+  // 스크롤 이벤트 완전 차단
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const preventScroll = (e: Event) => {
+      e.stopPropagation();
+    };
+
+    const preventWheelScroll = (e: Event) => {
+      const wheelEvent = e as WheelEvent;
+      const target = wheelEvent.target as HTMLElement;
+      const scrollable = target.closest(".overflow-y-auto");
+
+      if (scrollable) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollable;
+        const isAtTop = scrollTop === 0;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+        // 맨 위에서 위로 스크롤 또는 맨 아래에서 아래로 스크롤하는 경우 차단
+        if (
+          (isAtTop && wheelEvent.deltaY < 0) ||
+          (isAtBottom && wheelEvent.deltaY > 0)
+        ) {
+          wheelEvent.preventDefault();
+        }
+      }
+
+      wheelEvent.stopPropagation();
+    };
+
+    const sidebar = sidebarRef.current;
+    const scrollable = scrollableRef.current;
+
+    if (sidebar) {
+      sidebar.addEventListener("wheel", preventWheelScroll, {
+        passive: false,
+      });
+      sidebar.addEventListener("touchmove", preventScroll, {
+        passive: false,
+      });
+      sidebar.addEventListener("scroll", preventScroll, true);
+    }
+
+    if (scrollable) {
+      scrollable.addEventListener("wheel", preventWheelScroll, {
+        passive: false,
+      });
+      scrollable.addEventListener("touchmove", preventScroll, {
+        passive: false,
+      });
+    }
+
+    // 모든 하위 스크롤 영역에도 적용
+    const scrollableAreas = sidebar?.querySelectorAll(
+      ".overflow-y-auto",
+    );
+    scrollableAreas?.forEach((area) => {
+      area.addEventListener("wheel", preventWheelScroll, {
+        passive: false,
+      });
+      area.addEventListener("touchmove", preventScroll, {
+        passive: false,
+      });
+    });
+
+    return () => {
+      if (sidebar) {
+        sidebar.removeEventListener(
+          "wheel",
+          preventWheelScroll,
+        );
+        sidebar.removeEventListener("touchmove", preventScroll);
+        sidebar.removeEventListener("scroll", preventScroll);
+      }
+      if (scrollable) {
+        scrollable.removeEventListener(
+          "wheel",
+          preventWheelScroll,
+        );
+        scrollable.removeEventListener(
+          "touchmove",
+          preventScroll,
+        );
+      }
+      scrollableAreas?.forEach((area) => {
+        area.removeEventListener("wheel", preventWheelScroll);
+        area.removeEventListener("touchmove", preventScroll);
+      });
+    };
+  }, [isOpen]);
 
   // 국가 선택 변경 감지
   useEffect(() => {
@@ -50,11 +156,9 @@ export function WineFilterSidebar({
     const prevLength = prevCountriesLength.current;
 
     if (currentLength > 0 && prevLength === 0) {
-      // 국가가 새로 선택됨 -> slideDown
       setIsSubregionVisible(true);
       setIsAnimatingOut(false);
     } else if (currentLength === 0 && prevLength > 0) {
-      // 모든 국가가 해제됨 -> slideUp
       setIsAnimatingOut(true);
       setTimeout(() => {
         setIsSubregionVisible(false);
@@ -93,7 +197,6 @@ export function WineFilterSidebar({
       ? filters.countries.filter((c) => c !== country)
       : [...filters.countries, country];
 
-    // 국가 선택이 해제되면 해당 국가의 지역도 선택 해제
     let newSubregions = filters.subregions;
     if (!newCountries.includes(country)) {
       const countryRegions = new Set(
@@ -134,41 +237,70 @@ export function WineFilterSidebar({
     onFilterChange({ ...filters, grapeVarieties: newGrapes });
   };
 
+  const handleAromaToggle = (aroma: string) => {
+    const newAromas = filters.aromas.includes(aroma)
+      ? filters.aromas.filter((a) => a !== aroma)
+      : [...filters.aromas, aroma];
+    onFilterChange({ ...filters, aromas: newAromas });
+  };
+
   return (
     <>
       {/* Backdrop Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-opacity-60 z-40 transition-opacity duration-300"
+          className="fixed inset-0 bg-black/30 backdrop z-40 transition-opacity duration-300"
           onClick={onToggle}
         />
       )}
 
+      {/* Help Button (when sidebar closed) */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenGuide();
+        }}
+        className={`fixed top-4 left-4 z-50 bg-white shadow-sm rounded-full p-3 hover:bg-gray-50 hover:shadow-lg transition-all duration-300 hover:scale-110 ${
+          isOpen || isSearchOpen ? "hidden" : ""
+        }`}
+        aria-label="도움말"
+      >
+        <HelpCircle className="w-6 h-6 text-gray-700" />
+      </button>
+
       {/* Toggle Button (when closed) */}
-      {!isOpen && (
-        <button
-          onClick={onToggle}
-          className="fixed top-6 left-6 z-50 bg-white shadow-xl rounded-full p-4 hover:bg-gray-50 hover:shadow-2xl transition-all duration-300 hover:scale-110"
-          aria-label="필터 열기"
-        >
-          <SlidersHorizontal className="w-6 h-6 text-gray-700" />
-        </button>
-      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`fixed top-24 left-4 z-50 bg-white shadow-sm rounded-full p-3 hover:bg-gray-50 hover:shadow-lg transition-all duration-300 hover:scale-110 ${
+          isOpen || isSearchOpen ? "hidden" : ""
+        }`}
+        aria-label="필터 열기"
+      >
+        <SlidersHorizontal className="w-6 h-6 text-gray-700" />
+      </button>
 
       {/* Floating Sidebar Modal */}
       <div
-        className={`fixed left-6 top-6 bottom-6 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 transition-all duration-300 ease-in-out ${
-          isOpen
+        ref={sidebarRef}
+        className={`fixed max-h-[80vh] left-6 top-6 bottom-6 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden z-50 transition-all duration-300 ease-in-out ${
+          isOpen && !isSearchOpen
             ? "translate-x-0 opacity-100"
             : "-translate-x-[450px] opacity-0"
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Sidebar Header - Fixed */}
         <div className="sticky top-0 bg-gradient-to-r from-[#8B1538] to-[#6B0F2A] text-white p-6 shadow-lg z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
-                onClick={onToggle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
                 className="hover:bg-white/20 rounded-lg p-2 transition-colors"
                 aria-label="필터 닫기"
               >
@@ -177,7 +309,10 @@ export function WineFilterSidebar({
               <h2 className="text-2xl font-bold">필터</h2>
             </div>
             <button
-              onClick={onReset}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset();
+              }}
               className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium"
             >
               <RotateCcw className="w-4 h-4" />
@@ -187,7 +322,10 @@ export function WineFilterSidebar({
         </div>
 
         {/* Scrollable Content */}
-        <div className="overflow-y-auto h-[calc(100%-88px)] px-8 py-4">
+        <div
+          ref={scrollableRef}
+          className="overflow-y-auto h-[calc(100%-88px)] px-8 py-4"
+        >
           {/* Price Range */}
           <RangeSlider
             min={0}
@@ -200,6 +338,8 @@ export function WineFilterSidebar({
                 priceRange: value,
               })
             }
+            onChangeStart={handleSliderStart}
+            onChangeComplete={() => handleSliderComplete()}
             formatLabel={(value) =>
               `₩${value.toLocaleString()}`
             }
@@ -207,7 +347,7 @@ export function WineFilterSidebar({
           />
 
           {/* Wine Types */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
+          <div className="mb-6 p-4">
             <label className="block text-sm font-semibold mb-3 text-gray-700">
               와인 타입
             </label>
@@ -216,11 +356,16 @@ export function WineFilterSidebar({
                 <label
                   key={type}
                   className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={filters.wineTypes.includes(type)}
-                    onChange={() => handleWineTypeToggle(type)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleWineTypeToggle(type);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
                   <span className="text-sm group-hover:text-purple-600 transition-colors">
@@ -232,7 +377,7 @@ export function WineFilterSidebar({
           </div>
 
           {/* Countries */}
-          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
+          <div className="mb-6">
             <label className="block text-sm font-semibold mb-3 text-gray-700">
               국가
             </label>
@@ -241,15 +386,18 @@ export function WineFilterSidebar({
                 <label
                   key={country}
                   className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={filters.countries.includes(
                       country,
                     )}
-                    onChange={() =>
-                      handleCountryToggle(country)
-                    }
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleCountryToggle(country);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   <span className="text-sm group-hover:text-indigo-600 transition-colors">
@@ -264,7 +412,9 @@ export function WineFilterSidebar({
           {isSubregionVisible && (
             <div
               className={`mb-6 bg-gray-50 rounded-xl p-4 shadow-sm ${
-                isAnimatingOut ? "animate-slideUp" : "animate-slideDown"
+                isAnimatingOut
+                  ? "animate-slideUp"
+                  : "animate-slideDown"
               }`}
             >
               <label className="block text-sm font-semibold mb-3 text-gray-700">
@@ -275,15 +425,18 @@ export function WineFilterSidebar({
                   <label
                     key={subregion}
                     className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <input
                       type="checkbox"
                       checked={filters.subregions.includes(
                         subregion,
                       )}
-                      onChange={() =>
-                        handleSubregionToggle(subregion)
-                      }
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleSubregionToggle(subregion);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                     />
                     <span className="text-sm group-hover:text-purple-600 transition-colors">
@@ -305,13 +458,16 @@ export function WineFilterSidebar({
                 <label
                   key={vintage}
                   className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={filters.vintages.includes(vintage)}
-                    onChange={() =>
-                      handleVintageToggle(vintage)
-                    }
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleVintageToggle(vintage);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                   />
                   <span className="text-sm group-hover:text-amber-700 transition-colors">
@@ -332,19 +488,52 @@ export function WineFilterSidebar({
                 <label
                   key={grape}
                   className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={filters.grapeVarieties.includes(
                       grape,
                     )}
-                    onChange={() =>
-                      handleGrapeVarietyToggle(grape)
-                    }
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleGrapeVarietyToggle(grape);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                   />
                   <span className="text-sm group-hover:text-green-700 transition-colors">
                     {grape}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Aromas */}
+          <div className="mb-6 bg-gray-50 rounded-xl p-4 shadow-sm">
+            <label className="block text-sm font-semibold mb-3 text-gray-700">
+              향
+            </label>
+            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+              {availableOptions.aromas.map((aroma) => (
+                <label
+                  key={aroma}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-lg p-2 transition-colors group"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.aromas.includes(aroma)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleAromaToggle(aroma);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm group-hover:text-blue-700 transition-colors">
+                    {aroma}
                   </span>
                 </label>
               ))}
@@ -357,7 +546,6 @@ export function WineFilterSidebar({
               맛 프로필
             </h3>
 
-            {/* Tannin Range */}
             <RangeSlider
               min={1}
               max={5}
@@ -369,11 +557,12 @@ export function WineFilterSidebar({
                   tanninRange: value,
                 })
               }
+              onChangeStart={handleSliderStart}
+              onChangeComplete={() => handleSliderComplete()}
               formatLabel={(value) => value.toFixed(1)}
               label="타닌"
             />
 
-            {/* Sweetness Range */}
             <RangeSlider
               min={1}
               max={5}
@@ -385,11 +574,12 @@ export function WineFilterSidebar({
                   sweetnessRange: value,
                 })
               }
+              onChangeStart={handleSliderStart}
+              onChangeComplete={() => handleSliderComplete()}
               formatLabel={(value) => value.toFixed(1)}
               label="당도"
             />
 
-            {/* Acidity Range */}
             <RangeSlider
               min={1}
               max={5}
@@ -401,11 +591,12 @@ export function WineFilterSidebar({
                   acidityRange: value,
                 })
               }
+              onChangeStart={handleSliderStart}
+              onChangeComplete={() => handleSliderComplete()}
               formatLabel={(value) => value.toFixed(1)}
               label="산도"
             />
 
-            {/* Body Range */}
             <RangeSlider
               min={1}
               max={5}
@@ -417,11 +608,12 @@ export function WineFilterSidebar({
                   bodyRange: value,
                 })
               }
+              onChangeStart={handleSliderStart}
+              onChangeComplete={() => handleSliderComplete()}
               formatLabel={(value) => value.toFixed(1)}
               label="바디"
             />
 
-            {/* Alcohol Range */}
             <RangeSlider
               min={0}
               max={25}
@@ -433,6 +625,8 @@ export function WineFilterSidebar({
                   alcoholRange: value,
                 })
               }
+              onChangeStart={handleSliderStart}
+              onChangeComplete={() => handleSliderComplete()}
               formatLabel={(value) => `${value.toFixed(1)}%`}
               label="알코올 도수 (%)"
             />

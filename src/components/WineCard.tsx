@@ -1,5 +1,6 @@
 import { WineRow } from "../types/wine";
 import { Wine } from "lucide-react";
+import { motion } from "motion/react";
 
 interface WineCardProps {
   wine: WineRow;
@@ -33,8 +34,25 @@ export function WineCard({
 }: WineCardProps) {
   const headerColor = getWineTypeColor(wine.wine_type);
 
+  // 체크박스 클릭 핸들러
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 카드 클릭 이벤트로 전파 방지
+    onToggleSelect();
+  };
+
+  // 카드 클릭 핸들러 (체크박스 영역 제외)
+  const handleCardClick = () => {
+    onToggleSelect();
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      onClick={handleCardClick}
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+    >
       {/* Header with wine type - 검은 글씨 + 파스텔 배경 */}
       <div
         className="px-4 py-3 flex items-center justify-between"
@@ -46,14 +64,16 @@ export function WineCard({
             {wine.wine_type}
           </span>
         </div>
-        <label className="flex items-center cursor-pointer">
+        <div onClick={handleCheckboxClick}>
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={onToggleSelect}
-            className="w-5 h-5 rounded border-gray-400"
+            onChange={(e) => {
+              e.stopPropagation();
+            }}
+            className="w-5 h-5 rounded border-gray-400 cursor-pointer"
           />
-        </label>
+        </div>
       </div>
 
       {/* Wine Details */}
@@ -200,6 +220,6 @@ export function WineCard({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

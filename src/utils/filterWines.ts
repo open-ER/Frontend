@@ -35,6 +35,14 @@ export function filterWines(wines: WineRow[], filters: FilterState): WineRow[] {
       return false;
     }
 
+    // Aromas filter
+    if (filters.aromas.length > 0) {
+      const hasMatchingAroma = wine.aromas.some(aroma => filters.aromas.includes(aroma));
+      if (!hasMatchingAroma) {
+        return false;
+      }
+    }
+
     // Tannin filter
     if (
       wine.tannin &&
@@ -86,12 +94,14 @@ export function getAvailableOptions(wines: WineRow[]) {
     ...new Set(wines.map((w) => w.vintage).filter((v): v is number => v !== null)),
   ].sort((a, b) => b - a);
   const grapeVarieties = [...new Set(wines.map((w) => w.grape_or_style))].sort();
+  const aromas = [...new Set(wines.flatMap((w) => w.aromas))].sort();
 
   return {
     countries,
     subregions,
     vintages,
     grapeVarieties,
+    aromas,
   };
 }
 
@@ -103,6 +113,7 @@ export function getInitialFilters(): FilterState {
     subregions: [],
     vintages: [],
     grapeVarieties: [],
+    aromas: [],
     tanninRange: [1, 5],
     sweetnessRange: [1, 5],
     acidityRange: [1, 5],
