@@ -14,6 +14,13 @@ export interface WineRow {
   price_krw: number | null;
 }
 
+export interface WineApiResponse {
+  total: number;
+  page: number;
+  per_page: number;
+  wines: WineRow[];
+}
+
 export interface FilterState {
   priceRange: [number, number];
   wineTypes: string[];
