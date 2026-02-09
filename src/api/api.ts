@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { WineApiResponse, WineRow, FilterOptions, FilterRequest, FilterState } from '../types/wine';
 
-const API_BASE_URL = 'http://opener-onrender.com/';
+const API_BASE_URL = 'https://opener-onrender.com/';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,

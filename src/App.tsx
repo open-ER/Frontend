@@ -221,7 +221,7 @@ export default function App() {
           <p className="text-sm text-gray-500 mb-4">
             API 서버 상태를 확인해주세요.<br />
             <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-              http://opener-onrender.com/
+              https://opener-onrender.com/
             </code>
           </p>
           <button
