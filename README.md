@@ -4,7 +4,7 @@ React + TypeScript + Vite 기반 와인 검색 및 비교 웹 애플리케이션
 
 ## 📋 Figma 디자인
 
-https://www.figma.com/design/3nssItDhIjUxu47jl1LWzo/오프너-벤치마킹-사이트
+[피그마 링크](https://www.figma.com/make/3nssItDhIjUxu47jl1LWzo/%EC%98%A4%ED%94%84%EB%84%88-%EB%B2%A4%EC%B9%98%EB%A7%88%ED%82%B9-%EC%82%AC%EC%9D%B4%ED%8A%B8?fullscreen=1&t=55C161Ax6rIcU4ip-1)
 
 ## 🚀 시작하기
 ### 1. 의존성 설치
