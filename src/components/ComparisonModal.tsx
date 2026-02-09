@@ -62,6 +62,20 @@ export function ComparisonModal({
     fetchComparisonData();
   }, [isOpen, wineIds]);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   // 최대 5개까지만 표시
   const displayWines = wines.slice(0, 5);
 
@@ -145,7 +159,15 @@ export function ComparisonModal({
             </div>
 
             {/* Content */}
-            <div className="p-4 md:p-8">
+            <div
+              className="p-4 md:p-8"
+              style={{
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
+              onWheel={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+            >
               {isLoading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">
