@@ -1,11 +1,68 @@
+# openER - 와인 검색 및 비교 플랫폼
 
-  # 오프너 벤치마킹 사이트
+React + TypeScript + Vite 기반 와인 검색 및 비교 웹 애플리케이션
 
-  This is a code bundle for 오프너 벤치마킹 사이트. The original project is available at https://www.figma.com/design/3nssItDhIjUxu47jl1LWzo/%EC%98%A4%ED%94%84%EB%84%88-%EB%B2%A4%EC%B9%98%EB%A7%88%ED%82%B9-%EC%82%AC%EC%9D%B4%ED%8A%B8.
+## 📋 Figma 디자인
 
-  ## Running the code
+https://www.figma.com/design/3nssItDhIjUxu47jl1LWzo/오프너-벤치마킹-사이트
 
-  Run `npm i` to install the dependencies.
+## 🚀 시작하기
+### 1. 의존성 설치
+```
+npm install
+```
+### 2. 환경 변수 설정
+.env 파일을 생성하고 다음 내용을 추가하세요
+```
+VITE_API_URL=http://localhost:5000
+```
+### 3. 개발 서버 실행
+```
+npm run dev
+```
+개발 서버가 http://localhost:3000 (또는 3001)에서 실행됩니다.
 
-  Run `npm run dev` to start the development server.
-  
+### 4. 프로덕션 빌드
+```
+npm run build
+```
+
+## 🛠️ 기술 스택
+
+- **프레임워크:** React 18.3.1
+- **언어:** TypeScript
+- **빌드 도구:** Vite 6.3.5
+- **UI 라이브러리:**
+  - Radix UI (컴포넌트)
+  - Tailwind CSS (스타일링)
+  - Framer Motion (애니메이션)
+- **HTTP 클라이언트:** Axios
+- **아이콘:** Lucide React
+
+## 📁 프로젝트 구조
+```
+Frontend/
+├── src/
+│   ├── api/              # API 클라이언트
+│   ├── components/       # React 컴포넌트
+│   ├── data/            # 정적 데이터
+│   ├── hooks/           # Custom Hooks
+│   ├── types/           # TypeScript 타입 정의
+│   ├── utils/           # 유틸리티 함수
+│   ├── App.tsx          # 메인 앱 컴포넌트
+│   └── main.tsx         # 엔트리 포인트
+└──  public/              # 정적 파일
+```
+## 🔑 주요 기능
+
+- 🔍 와인 검색 및 필터링
+- 📊 와인 비교 기능
+- 🎨 초보자 가이드 모달
+- 📱 반응형 디자인
+- ⚡ 빠른 로딩 및 최적화
+
+## 📝 개발 참고사항
+
+- **API 호출:** src/api/ 폴더의 클라이언트를 사용
+- **환경 변수:** .env 파일에서 VITE_ 접두사 사용
+- **타입 정의:** src/vite-env.d.ts에서 전역 타입 선언
