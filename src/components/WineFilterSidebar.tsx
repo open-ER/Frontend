@@ -207,14 +207,14 @@ export function WineFilterSidebar({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-start p-4 md:p-8">
+        <div className="fixed inset-0 z-50 flex items-start justify-start">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 bg-black/30 backdrop"
             onClick={onToggle}
           />
 
@@ -225,13 +225,14 @@ export function WineFilterSidebar({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: "tween", duration: 0.25 }}
-            className="relative w-full md:w-[420px] lg:w-[460px]
-                      max-h-[calc(100vh-12rem)] md:max-h-[calc(100vh-14rem)]
-                      bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            className="relative p-20 w-[calc(100%-10rem)] md:w-[420px] lg:w-[460px]
+                      h-[calc(100%-10rem)]
+                      m-4 md:m-8
+                      bg-white rounded-2xl shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b bg-white sticky top-0 z-10 rounded-t-2xl shrink-0">
+            <div className="flex items-center justify-between px-6 md:px-12 py-4 md:py-6 border-b bg-white shrink-0">
               <div className="flex items-center gap-3">
                 <SlidersHorizontal className="w-6 h-6 text-blue-600" />
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900">
@@ -279,7 +280,7 @@ export function WineFilterSidebar({
             {/* Scrollable Content */}
             <div
               ref={scrollableRef}
-              className="overflow-y-auto flex-1 px-4 py-4 md:py-6"
+              className="flex-1 overflow-y-auto px-6 md:px-12 py-4 md:py-6"
               style={{
                 overscrollBehavior: "contain",
                 WebkitOverflowScrolling: "touch",
@@ -588,9 +589,6 @@ export function WineFilterSidebar({
                     label="알코올 도수"
                   />
                 </div>
-
-              {/* Bottom spacing for better scrolling */}
-              <div className="h-4"></div>
             </div>
           </motion.div>
         </div>
